@@ -6,13 +6,29 @@ import {
   MAX_DURATION_MINUTES,
   MINUTES_PER_DAY,
   checkAvailability,
+  filterByCapacity,
+  filterByEquipment,
   isInteger,
   validateBookingRequest,
 } from "@/lib/availability";
-import { CURRENT_TIME_MINUTES, INITIAL_BOOKINGS, ROOM } from "@/lib/fixtures";
+import { CURRENT_TIME_MINUTES, INITIAL_BOOKINGS, ROOM, ROOMS } from "@/lib/fixtures";
 
-const OPEN_ROOM: Room = { name: "Study Room A101", blocked: false };
-const BLOCKED_ROOM: Room = { name: "Study Room A101", blocked: true };
+const OPEN_ROOM: Room = {
+  id: "a101",
+  name: "Study Room A101",
+  capacity: 6,
+  equipment: ["Projector", "Whiteboard"],
+  blocked: false,
+  bookings: [],
+};
+const BLOCKED_ROOM: Room = {
+  id: "d404",
+  name: "Seminar Room D404",
+  capacity: 40,
+  equipment: ["Projector", "Microphone", "Whiteboard"],
+  blocked: true,
+  bookings: [],
+};
 
 const EXISTING_BOOKING: Booking = {
   id: "b1",
@@ -241,5 +257,147 @@ describe("AC6 — availability outcome is deterministic and well-typed", () => {
     const a = checkAvailability(input);
     const b = checkAvailability(input);
     expect(a).toEqual(b);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Assignment #04 — Room catalog, capacity & equipment filters (F1, F2, F3)
+// ---------------------------------------------------------------------------
+
+describe("Room catalog — four fictional rooms", () => {
+  it("exports at least four rooms", () => {
+    expect(ROOMS.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("every room has a unique id", () => {
+    const ids = ROOMS.map((r) => r.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("every room has required fields with valid values", () => {
+    for (const room of ROOMS) {
+      expect(typeof room.id).toBe("string");
+      expect(room.id.length).toBeGreaterThan(0);
+      expect(typeof room.name).toBe("string");
+      expect(room.name.length).toBeGreaterThan(0);
+      expect(typeof room.capacity).toBe("number");
+      expect(room.capacity).toBeGreaterThan(0);
+      expect(Array.isArray(room.equipment)).toBe(true);
+      expect(room.equipment.length).toBeGreaterThan(0);
+      expect(typeof room.blocked).toBe("boolean");
+      expect(Array.isArray(room.bookings)).toBe(true);
+    }
+  });
+
+  it("A101 preserves the original booking data exactly", () => {
+    const a101 = ROOMS.find((r) => r.id === "a101");
+    expect(a101).toBeDefined();
+    expect(a101!.bookings).toEqual([
+      {
+        id: "b1",
+        start: 600,
+        end: 660,
+        label: "Group Study — CS210",
+      },
+    ]);
+  });
+
+  it("D404 is blocked", () => {
+    const d404 = ROOMS.find((r) => r.id === "d404");
+    expect(d404).toBeDefined();
+    expect(d404!.blocked).toBe(true);
+  });
+});
+
+describe("F1 — filterByCapacity", () => {
+  it("returns all rooms when minCapacity is 0 or invalid", () => {
+    expect(filterByCapacity(ROOMS, 0)).toHaveLength(ROOMS.length);
+    expect(filterByCapacity(ROOMS, -5)).toHaveLength(ROOMS.length);
+    expect(filterByCapacity(ROOMS, NaN)).toHaveLength(ROOMS.length);
+    expect(filterByCapacity(ROOMS, 5.5)).toHaveLength(ROOMS.length);
+  });
+
+  it("returns only rooms with capacity >= the requested value", () => {
+    const result = filterByCapacity(ROOMS, 15);
+    expect(result.every((r) => r.capacity >= 15)).toBe(true);
+    expect(result.length).toBeLessThan(ROOMS.length);
+  });
+
+  it("returns only D404 (capacity 40) when requesting 40", () => {
+    const result = filterByCapacity(ROOMS, 40);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("d404");
+  });
+
+  it("returns no rooms when requesting more than the largest capacity", () => {
+    const result = filterByCapacity(ROOMS, 100);
+    expect(result).toHaveLength(0);
+  });
+
+  it("does not mutate the input array", () => {
+    const snapshot = JSON.stringify(ROOMS);
+    filterByCapacity(ROOMS, 20);
+    expect(JSON.stringify(ROOMS)).toBe(snapshot);
+  });
+});
+
+describe("F2 — filterByEquipment (ALL required items)", () => {
+  it("returns all rooms when no equipment is required", () => {
+    expect(filterByEquipment(ROOMS, [])).toHaveLength(ROOMS.length);
+  });
+
+  it("returns only rooms containing ALL selected items", () => {
+    const result = filterByEquipment(ROOMS, ["Projector", "Whiteboard"]);
+    expect(result.every(
+      (r) => r.equipment.includes("Projector") && r.equipment.includes("Whiteboard"),
+    )).toBe(true);
+  });
+
+  it("returns only B202 when Computers is required", () => {
+    const result = filterByEquipment(ROOMS, ["Computers"]);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("b202");
+  });
+
+  it("returns no rooms when requiring non-existent equipment", () => {
+    const result = filterByEquipment(ROOMS, ["Coffee Machine"]);
+    expect(result).toHaveLength(0);
+  });
+
+  it("returns only C303 when Video Conferencing is required", () => {
+    const result = filterByEquipment(ROOMS, ["Video Conferencing"]);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("c303");
+  });
+
+  it("does not mutate the input array", () => {
+    const snapshot = JSON.stringify(ROOMS);
+    filterByEquipment(ROOMS, ["Projector"]);
+    expect(JSON.stringify(ROOMS)).toBe(snapshot);
+  });
+});
+
+describe("F3 — blocked rooms never reported as available", () => {
+  it("checkAvailability returns unavailable for blocked room D404", () => {
+    const d404 = ROOMS.find((r) => r.id === "d404")!;
+    const result = checkAvailability({
+      start: 720,
+      end: 780,
+      now: CURRENT_TIME_MINUTES,
+      room: d404,
+      bookings: d404.bookings,
+    });
+    expect(result.kind).toBe("unavailable");
+  });
+});
+
+describe("Combined filters — capacity and equipment together", () => {
+  it("filters by both capacity and equipment (AND logic)", () => {
+    const byCap = filterByCapacity(ROOMS, 15);
+    const byEq = filterByEquipment(byCap, ["Projector", "Whiteboard"]);
+    expect(byEq.every((r) => r.capacity >= 15)).toBe(true);
+    expect(byEq.every(
+      (r) => r.equipment.includes("Projector") && r.equipment.includes("Whiteboard"),
+    )).toBe(true);
   });
 });

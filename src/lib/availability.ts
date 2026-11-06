@@ -8,8 +8,12 @@ export interface Booking {
 }
 
 export interface Room {
+  id: string;
   name: string;
+  capacity: number;
+  equipment: string[];
   blocked: boolean;
+  bookings: Booking[];
 }
 
 export interface AvailabilityInput {
@@ -146,4 +150,16 @@ export function parseTimeToMinutes(time: string): number | null {
   const m = Number(match[2]);
   if (h < 0 || h > 23 || m < 0 || m > 59) return null;
   return h * 60 + m;
+}
+
+export function filterByCapacity(rooms: Room[], minCapacity: number): Room[] {
+  if (!isInteger(minCapacity) || minCapacity <= 0) return rooms;
+  return rooms.filter((r) => r.capacity >= minCapacity);
+}
+
+export function filterByEquipment(rooms: Room[], requiredItems: string[]): Room[] {
+  if (requiredItems.length === 0) return rooms;
+  return rooms.filter((r) =>
+    requiredItems.every((item) => r.equipment.includes(item)),
+  );
 }
