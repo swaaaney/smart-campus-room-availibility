@@ -1,4 +1,4 @@
-import type { Booking, Room } from "./availability";
+import type { Booking, Room } from "./types";
 
 export const CURRENT_TIME_MINUTES = 540; // 09:00
 

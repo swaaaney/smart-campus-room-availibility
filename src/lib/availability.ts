@@ -1,40 +1,19 @@
-/** @format */ /** @format */
+/** @format */
 
-export interface Booking {
-  id: string;
-  start: number; // minutes after midnight, integer
-  end: number; // minutes after midnight, integer
-  label: string;
-}
+export type {
+  AvailabilityInput,
+  AvailabilityOutcome,
+  Booking,
+  Room,
+  ValidationResult,
+} from "./types";
 
-export interface Room {
-  id: string;
-  name: string;
-  capacity: number;
-  equipment: string[];
-  blocked: boolean;
-  bookings: Booking[];
-}
-
-export interface AvailabilityInput {
-  start: number;
-  end: number;
-  now: number; // minutes after midnight, integer
-  room: Room;
-  bookings: Booking[];
-}
-
-export type AvailabilityOutcome =
-  | { kind: "available" }
-  | {
-      kind: "unavailable";
-      reason: string;
-      conflictBooking?: Booking;
-    };
-
-export type ValidationResult =
-  | { valid: true }
-  | { valid: false; message: string };
+import type {
+  AvailabilityInput,
+  AvailabilityOutcome,
+  Booking,
+  ValidationResult,
+} from "./types";
 
 export const MINUTES_PER_DAY = 1440;
 export const MAX_DURATION_MINUTES = 120;
@@ -150,16 +129,4 @@ export function parseTimeToMinutes(time: string): number | null {
   const m = Number(match[2]);
   if (h < 0 || h > 23 || m < 0 || m > 59) return null;
   return h * 60 + m;
-}
-
-export function filterByCapacity(rooms: Room[], minCapacity: number): Room[] {
-  if (!isInteger(minCapacity) || minCapacity <= 0) return rooms;
-  return rooms.filter((r) => r.capacity >= minCapacity);
-}
-
-export function filterByEquipment(rooms: Room[], requiredItems: string[]): Room[] {
-  if (requiredItems.length === 0) return rooms;
-  return rooms.filter((r) =>
-    requiredItems.every((item) => r.equipment.includes(item)),
-  );
 }

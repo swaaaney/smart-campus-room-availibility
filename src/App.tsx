@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertCircle,
-  BookOpen,
   Building2,
   CalendarClock,
   CheckCircle2,
@@ -10,224 +8,31 @@ import {
   GraduationCap,
   Info,
   Lock,
-  Monitor,
   RefreshCw,
   SearchX,
-  Sparkles,
   Users,
-  XCircle,
 } from "lucide-react";
 import {
   type AvailabilityInput,
   type AvailabilityOutcome,
   type Booking,
-  type Room,
   type ValidationResult,
   checkAvailability,
-  filterByCapacity,
-  filterByEquipment,
   formatMinutes,
   parseTimeToMinutes,
   validateBookingRequest,
 } from "@/lib/availability";
+import { filterByCapacity, filterByEquipment } from "@/lib/filter";
 import {
   ALL_EQUIPMENT,
   CURRENT_TIME_MINUTES,
   ROOMS,
 } from "@/lib/fixtures";
-
-function durationLabel(start: number, end: number): string {
-  return `${end - start} min`;
-}
-
-function AvailabilityCard({
-  result,
-  requestedRange,
-}: {
-  result: AvailabilityOutcome | null;
-  requestedRange: { start: number; end: number } | null;
-}) {
-  if (!result) {
-    return (
-      <div className="flex items-center gap-3 rounded-2xl border border-campus-lavender/70 bg-campus-lavender/40 px-5 py-4 text-campus-ink/70 animate-fadeIn">
-        <Sparkles className="h-5 w-5 shrink-0 text-campus-primary" />
-        <span className="text-sm font-medium">
-          Enter a start and end time, then check availability.
-        </span>
-      </div>
-    );
-  }
-
-  if (result.kind === "available") {
-    return (
-      <div className="animate-riseIn rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 px-5 py-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-sm">
-            <CheckCircle2 className="h-6 w-6" />
-          </span>
-          <div>
-            <p className="text-base font-bold text-emerald-800">Available</p>
-            <p className="text-sm font-medium text-emerald-700">
-              {requestedRange
-                ? `${formatMinutes(requestedRange.start)}–${formatMinutes(
-                    requestedRange.end,
-                  )} is free for booking.`
-                : "This time slot is free for booking."}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="animate-riseIn rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 to-red-50 px-5 py-4 shadow-sm">
-      <div className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500 text-white shadow-sm">
-          <XCircle className="h-6 w-6" />
-        </span>
-        <div>
-          <p className="text-base font-bold text-rose-800">Unavailable</p>
-          <p className="text-sm font-medium text-rose-700">{result.reason}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function BookingRow({ booking }: { booking: Booking }) {
-  return (
-    <li className="group flex flex-col gap-2 rounded-2xl border border-campus-lavender/70 bg-white px-4 py-3.5 transition-all hover:border-campus-primary/40 hover:shadow-soft sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-campus-lavender to-campus-bg text-campus-primary transition group-hover:from-campus-primary group-hover:to-campus-deep group-hover:text-white">
-          <BookOpen className="h-4 w-4" />
-        </span>
-        <div>
-          <p className="text-sm font-semibold text-campus-ink">
-            {booking.label}
-          </p>
-          <p className="text-sm leading-relaxed text-slate-500">
-            {formatMinutes(booking.start)} – {formatMinutes(booking.end)}
-          </p>
-        </div>
-      </div>
-      <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-campus-lavender/60 px-3 py-1 text-xs font-semibold text-campus-deep">
-        <Clock className="h-3.5 w-3.5" />
-        {durationLabel(booking.start, booking.end)}
-      </span>
-    </li>
-  );
-}
-
-function TimeField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (next: string) => void;
-}) {
-  return (
-    <label className="flex flex-col gap-2">
-      <span className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </span>
-      <input
-        type="time"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-xl border border-campus-lavender bg-white px-4 py-3.5 text-base font-medium text-campus-ink shadow-sm transition focus:border-campus-primary focus:outline-none focus:ring-4 focus:ring-campus-primary/15"
-      />
-    </label>
-  );
-}
-
-function ValidationHint({ validation }: { validation: ValidationResult }) {
-  if (validation.valid) {
-    return (
-      <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3.5 py-3 text-sm leading-relaxed text-emerald-800 animate-fadeIn">
-        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-        <span className="font-medium">
-          Times look valid. Tap Check Availability to confirm the room.
-        </span>
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/90 px-3.5 py-3 text-sm leading-relaxed text-amber-800 animate-fadeIn">
-      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-      <span className="font-medium">{validation.message}</span>
-    </div>
-  );
-}
-
-function RoomCard({
-  room,
-  isSelected,
-  onSelect,
-}: {
-  room: Room;
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`group flex flex-col gap-3 rounded-2xl border p-4 text-left transition-all sm:p-5 ${
-        isSelected
-          ? "border-campus-primary bg-campus-lavender/60 shadow-soft"
-          : "border-campus-lavender/70 bg-white hover:border-campus-primary/40 hover:shadow-soft"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <span
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
-              isSelected
-                ? "bg-gradient-to-br from-campus-primary to-campus-deep text-white"
-                : "bg-campus-lavender text-campus-primary group-hover:from-campus-primary group-hover:to-campus-deep group-hover:text-white"
-            }`}
-          >
-            <Building2 className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-sm font-bold text-campus-ink">{room.name}</p>
-            <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-              <span className="inline-flex items-center gap-1">
-                <Users className="h-3.5 w-3.5" />
-                {room.capacity}
-              </span>
-            </div>
-          </div>
-        </div>
-        {room.blocked ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">
-            <Lock className="h-3 w-3" />
-            Blocked
-          </span>
-        ) : (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-            <DoorClosed className="h-3 w-3" />
-            Open
-          </span>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {room.equipment.map((item) => (
-          <span
-            key={item}
-            className="inline-flex items-center gap-1 rounded-full bg-campus-lavender/60 px-2.5 py-0.5 text-xs font-medium text-campus-deep"
-          >
-            <Monitor className="h-3 w-3" />
-            {item}
-          </span>
-        ))}
-      </div>
-    </button>
-  );
-}
+import { AvailabilityCard } from "@/components/AvailabilityCard";
+import { BookingRow } from "@/components/BookingRow";
+import { TimeField } from "@/components/TimeField";
+import { ValidationHint } from "@/components/ValidationHint";
+import { RoomCard } from "@/components/RoomCard";
 
 export default function App() {
   const [now] = useState(CURRENT_TIME_MINUTES);
@@ -611,7 +416,7 @@ export default function App() {
             <section className="animate-riseIn [animation-delay:80ms] lg:col-span-2 rounded-3xl border border-white/60 bg-white/85 p-5 shadow-card backdrop-blur-sm sm:p-7">
               <div className="mb-4 flex items-center gap-2.5">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-campus-lavender text-campus-primary">
-                  <BookOpen className="h-4.5 w-4.5" />
+                  <Info className="h-4.5 w-4.5" />
                 </span>
                 <h3 className="text-lg font-bold tracking-tight text-campus-ink">
                   Existing bookings

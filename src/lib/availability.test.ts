@@ -6,11 +6,10 @@ import {
   MAX_DURATION_MINUTES,
   MINUTES_PER_DAY,
   checkAvailability,
-  filterByCapacity,
-  filterByEquipment,
   isInteger,
   validateBookingRequest,
 } from "@/lib/availability";
+import { filterByCapacity, filterByEquipment } from "@/lib/filter";
 import { CURRENT_TIME_MINUTES, INITIAL_BOOKINGS, ROOM, ROOMS } from "@/lib/fixtures";
 
 const OPEN_ROOM: Room = {
